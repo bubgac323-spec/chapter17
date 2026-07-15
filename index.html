@@ -149,12 +149,12 @@
     // تحميل صورة شريف للكورة
     let isImgLoaded = false;
     const ballImg = new Image();
-    ballImg.src = "shifo.png"; // لازم ترفع صورتك بنفس الاسم ده في الـ Repository
+    ballImg.src = "shifo.png"; 
     ballImg.onload = () => {
         isImgLoaded = true;
     };
 
-    // المضرب (تم تكبير العرض لـ 130 عشان اللعبة تسهل)
+    // المضرب (مكبرينه لـ 130 لسهولة اللعب والتحكم)
     const paddle = {
         width: 130, 
         height: 14,
@@ -163,7 +163,6 @@
         color: "#ff007f"
     };
 
-    // مصفوفة الكرات لدعم الكرات المتعددة
     let balls = [];
 
     function initBalls() {
@@ -178,7 +177,7 @@
         }];
     }
 
-    // البلوكات (17 بلوكة)
+    // البلوكات (17 بلوكة ملونة ومبهجة)
     const brickRows = 3;
     const brickCols = 6; 
     const brickWidth = 54;
@@ -188,6 +187,7 @@
     const brickOffsetLeft = 18;
 
     let bricks = [];
+    const brickColors = ["#ff007f", "#00ffcc", "#ffcc00", "#00ff55", "#ff5500", "#aa00ff"];
 
     function initBricks() {
         bricks = [];
@@ -199,7 +199,7 @@
                         x: c * (brickWidth + brickPadding) + brickOffsetLeft,
                         y: r * (brickHeight + brickPadding) + brickOffsetTop,
                         status: 1,
-                        color: r === 0 ? "#ff007f" : r === 1 ? "#00ffcc" : "#ffcc00"
+                        color: brickColors[(r * brickCols + c) % brickColors.length] // ألوان نيون مختلفة
                     });
                     count++;
                 }
@@ -207,10 +207,12 @@
         }
     }
 
-    // لمس وسحب المطلب بطريقة سليمة
+    // معادلة لمس وسحب المضرب مع حل مشكلة التباعد (Scaling Fix)
     function handleMove(clientX) {
         const rect = canvas.getBoundingClientRect();
-        const relativeX = clientX - rect.left;
+        // ضرب الإحداثيات في النسبة بين العرض الداخلي والعرض الفعلي على الشاشة
+        const scaleX = canvas.width / rect.width;
+        const relativeX = (clientX - rect.left) * scaleX;
         
         paddle.x = relativeX - paddle.width / 2;
         
@@ -259,13 +261,12 @@
         if (!isPlaying) return;
         if (isBallSticky) return;
 
-        // تحريك وتحديث كل الكرات
         for (let i = balls.length - 1; i >= 0; i--) {
             let ball = balls[i];
             ball.x += ball.dx;
             ball.y += ball.dy;
 
-            // الارتداد من الحوائط الجانبية
+            // الارتداد من الجدران
             if (ball.x - ball.radius < 0) {
                 ball.x = ball.radius;
                 ball.dx = -ball.dx;
@@ -274,20 +275,20 @@
                 ball.x = canvas.width - ball.radius;
                 ball.dx = -ball.dx;
             }
-            // الارتداد من السقف
             if (ball.y - ball.radius < 0) {
                 ball.y = ball.radius;
                 ball.dy = -ball.dy;
             }
 
-            // الارتداد من المضرب
+            // نظام اصطدام ذكي ومؤمن لمنع الكورة من اختراق المضرب
             if (
+                ball.dy > 0 && // ترتد فقط وهي نازلة لتحت
                 ball.y + ball.radius >= paddle.y &&
                 ball.y - ball.radius <= paddle.y + paddle.height &&
-                ball.x >= paddle.x &&
-                ball.x <= paddle.x + paddle.width
+                ball.x + ball.radius >= paddle.x &&
+                ball.x - ball.radius <= paddle.x + paddle.width
             ) {
-                ball.y = paddle.y - ball.radius; // لمنع الكورة من النزول تحت المضرب
+                ball.y = paddle.y - ball.radius; // رفع الكورة فوق المضرب فوراً لمنع الاختراق
                 let hitPoint = ball.x - (paddle.x + paddle.width / 2);
                 let normalizedHitPoint = hitPoint / (paddle.width / 2); 
                 let angle = normalizedHitPoint * (Math.PI / 3); 
@@ -296,7 +297,7 @@
                 ball.dy = -ball.speed * Math.cos(angle);
             }
 
-            // الارتداد من البلوكات
+            // اصطدام البلوكات
             for (let j = 0; j < bricks.length; j++) {
                 let b = bricks[j];
                 if (b.status === 1) {
@@ -311,7 +312,7 @@
                         score++;
                         scoreBoard.innerText = `Bricks: ${score} / 17`;
 
-                        // ميزة تضاعف الكور: لو كسرنا بلوكة والكرات اقل من 3، نزل كورة جديدة
+                        // ميزة مضاعفة الكور (تنزيل كورة إضافية بحد أقصى 3 كور)
                         if (score < 17 && balls.length < 3) {
                             spawnExtraBall(ball.x, ball.y);
                         }
@@ -320,12 +321,12 @@
                             win();
                             return;
                         }
-                        break; // الخروج لمنع اصطدامات متعددة في فريم واحد
+                        break; 
                     }
                 }
             }
 
-            // سقوط الكورة في القاع
+            // الخسارة عند سقوط كل الكرات
             if (ball.y - ball.radius > canvas.height) {
                 balls.splice(i, 1);
                 if (balls.length === 0) {
@@ -339,7 +340,7 @@
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // رسم البلوكات
+        // رسم البلوكات الملونة بوهج نيون خفيف جمالي
         for (let i = 0; i < bricks.length; i++) {
             let b = bricks[i];
             if (b.status === 1) {
@@ -358,14 +359,14 @@
         ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
         ctx.shadowBlur = 0;
 
-        // رسم الكور
+        // رسم الكور (دائرية ومقصوصة بشكل احترافي)
         balls.forEach(ball => {
             if (isImgLoaded) {
                 ctx.save();
                 ctx.beginPath();
                 ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
                 ctx.closePath();
-                ctx.clip(); // قص الصورة على شكل دايرة مظبوطة
+                ctx.clip(); 
                 ctx.drawImage(ballImg, ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2);
                 ctx.restore();
             } else {
