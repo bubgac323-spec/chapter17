@@ -106,12 +106,12 @@
 <div id="gameContainer">
     <div id="scoreBoard" class="ui-element">Bricks: 0 / 17</div>
     <canvas id="gameCanvas" width="400" height="600"></canvas>
-    <div id="instructions" class="ui-element">Tap to Launch the Ball! <br>(Drag slide to move)</div>
+    <div id="instructions" class="ui-element">Tap to Launch Shifo! 🚀 <br>(Drag slide to move)</div>
 
     <!-- شاشة الخسارة -->
     <div id="gameOverScreen">
         <h1>Wasted! 💀</h1>
-        <p>مقدرتش تكسر الـ 17 بلوكة!<br>حاول تاني عشان تفتح الـ Chapter الجديد.</p>
+        <p>للأسف مقدرتش توصل شريف لـ 17 سنة! 😢<br>حاول تاني عشان تفتح الـ Chapter الجديد.</p>
         <button onclick="resetGame()">Try Again</button>
     </div>
 
@@ -133,32 +133,40 @@
     const instructions = document.getElementById("instructions");
 
     let isPlaying = true;
-    let isBallSticky = true; // الكورة بتتحرك مع المضرب في الأول لحد ما اللاعب يلمس الشاشة
+    let isBallSticky = true; 
     let score = 0;
 
-    // المضرب (Paddle)
+    // تحميل صورة شريف للكورة
+    let isImgLoaded = false;
+    const ballImg = new Image();
+    ballImg.src = "shifo.png"; // لازم ترفع صورتك بنفس الاسم ده في الـ Repository
+    ballImg.onload = () => {
+        isImgLoaded = true;
+    };
+
+    // المضرب (تم تكبير العرض لـ 130 عشان اللعبة تسهل)
     const paddle = {
-        width: 90,
+        width: 130, 
         height: 12,
-        x: 155,
+        x: 135,
         y: 520,
         color: "#ff007f"
     };
 
-    // الكورة
+    // الكورة (تم تكبير القطر لـ 15 عشان صورتك تبان وتكون واضحة)
     const ball = {
         x: 200,
         y: 505,
-        radius: 8,
+        radius: 15, 
         dx: 4,
         dy: -4,
         speed: 5.5,
         color: "#ffffff"
     };
 
-    // البلوكات (17 بلوكة بالظبط)
+    // البلوكات (17 بلوكة)
     const brickRows = 3;
-    const brickCols = 6; // الحد الأقصى للأعمدة في الصف
+    const brickCols = 6; 
     const brickWidth = 54;
     const brickHeight = 20;
     const brickPadding = 8;
@@ -172,7 +180,7 @@
         let count = 0;
         for (let r = 0; r < brickRows; r++) {
             for (let c = 0; c < brickCols; c++) {
-                if (count < 17) { // بنقف عند 17 بلوكة بالظبط
+                if (count < 17) { 
                     bricks.push({
                         x: c * (brickWidth + brickPadding) + brickOffsetLeft,
                         y: r * (brickHeight + brickPadding) + brickOffsetTop,
@@ -185,7 +193,6 @@
         }
     }
 
-    // حركة اللمس للموبايل (سحب المضرب)
     function handleMove(clientX) {
         const rect = canvas.getBoundingClientRect();
         const root = document.documentElement;
@@ -193,24 +200,20 @@
         
         paddle.x = relativeX - paddle.width / 2;
         
-        // منع المضرب من الخروج بره الشاشة
         if (paddle.x < 0) paddle.x = 0;
         if (paddle.x > canvas.width - paddle.width) paddle.x = canvas.width - paddle.width;
 
-        // الكورة تفضل فوق المضرب قبل البداية
         if (isBallSticky) {
             ball.x = paddle.x + paddle.width / 2;
         }
     }
 
-    // أحداث الماوس واللمس
     canvas.addEventListener("mousemove", (e) => handleMove(e.clientX));
     canvas.addEventListener("touchmove", (e) => {
         e.preventDefault();
         handleMove(e.touches[0].clientX);
     }, { passive: false });
 
-    // إطلاق الكورة عند الضغط
     function releaseBall() {
         if (isBallSticky && isPlaying) {
             isBallSticky = false;
@@ -226,39 +229,32 @@
 
     function update() {
         if (!isPlaying) return;
-
         if (isBallSticky) return;
 
-        // حركة الكورة
         ball.x += ball.dx;
         ball.y += ball.dy;
 
-        // اصطدام الجدران (يمين وشمال)
         if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
             ball.dx = -ball.dx;
         }
-        // اصطدام السقف
         if (ball.y - ball.radius < 0) {
             ball.dy = -ball.dy;
         }
 
-        // اصطدام المضرب
         if (
             ball.y + ball.radius >= paddle.y &&
             ball.y - ball.radius <= paddle.y + paddle.height &&
             ball.x >= paddle.x &&
             ball.x <= paddle.x + paddle.width
         ) {
-            // حساب زاوية الارتداد بناءً على مكان خبطة الكورة في المضرب
             let hitPoint = ball.x - (paddle.x + paddle.width / 2);
-            let normalizedHitPoint = hitPoint / (paddle.width / 2); // قيمة بين -1 و 1
-            let angle = normalizedHitPoint * (Math.PI / 3); // زاوية قصوى 60 درجة
+            let normalizedHitPoint = hitPoint / (paddle.width / 2); 
+            let angle = normalizedHitPoint * (Math.PI / 3); 
 
             ball.dx = ball.speed * Math.sin(angle);
             ball.dy = -ball.speed * Math.cos(angle);
         }
 
-        // كشف الاصطدام بالبلوكات
         for (let i = 0; i < bricks.length; i++) {
             let b = bricks[i];
             if (b.status === 1) {
@@ -268,12 +264,11 @@
                     ball.y + ball.radius > b.y &&
                     ball.y - ball.radius < b.y + brickHeight
                 ) {
-                    ball.dy = -ball.dy; // اعكس اتجاه الكورة
-                    b.status = 0; // اخفي البلوكة
+                    ball.dy = -ball.dy; 
+                    b.status = 0; 
                     score++;
                     scoreBoard.innerText = `Bricks: ${score} / 17`;
 
-                    // شرط الفوز
                     if (score === 17) {
                         win();
                     }
@@ -281,7 +276,6 @@
             }
         }
 
-        // السقوط في القاع (الخسارة)
         if (ball.y - ball.radius > canvas.height) {
             gameOver();
         }
@@ -290,7 +284,7 @@
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // رسم البلوكات الـ 17 الـ Active
+        // رسم البلوكات
         for (let i = 0; i < bricks.length; i++) {
             let b = bricks[i];
             if (b.status === 1) {
@@ -298,26 +292,37 @@
                 ctx.shadowColor = b.color;
                 ctx.shadowBlur = 8;
                 ctx.fillRect(b.x, b.y, brickWidth, brickHeight);
-                ctx.shadowBlur = 0; // ريست الشادو
+                ctx.shadowBlur = 0; 
             }
         }
 
-        // رسم المضرب
+        // رسم المضرب الجديد (الأعرض)
         ctx.fillStyle = paddle.color;
         ctx.shadowColor = paddle.color;
         ctx.shadowBlur = 10;
         ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
         ctx.shadowBlur = 0;
 
-        // رسم الكورة
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-        ctx.fillStyle = ball.color;
-        ctx.shadowColor = "#ffffff";
-        ctx.shadowBlur = 8;
-        ctx.fill();
-        ctx.closePath();
-        ctx.shadowBlur = 0;
+        // رسم الكورة (صورتك المقصوصة دايرة أو كورة مضيئة كـ Fallback)
+        if (isImgLoaded) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip(); // قص الصورة على شكل دايرة مظبوطة
+            ctx.drawImage(ballImg, ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2);
+            ctx.restore();
+        } else {
+            // كورة احتياطية في حال الصورة لسه مكنتش اترفت
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = ball.color;
+            ctx.shadowColor = "#ffffff";
+            ctx.shadowBlur = 8;
+            ctx.fill();
+            ctx.closePath();
+            ctx.shadowBlur = 0;
+        }
     }
 
     function gameLoop() {
@@ -342,7 +347,7 @@
         initBricks();
         isBallSticky = true;
         isPlaying = true;
-        paddle.x = 155;
+        paddle.x = 135;
         ball.x = 200;
         ball.y = 505;
         ball.dx = 4;
@@ -352,7 +357,6 @@
         instructions.style.display = "block";
     }
 
-    // ابدأ اللعبة لأول مرة
     initBricks();
     gameLoop();
 </script>
