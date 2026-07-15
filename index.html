@@ -30,6 +30,8 @@
         }
         canvas {
             display: block;
+            width: 100%;
+            height: 100%;
             background: radial-gradient(circle, #1a1a24, #08080c);
         }
         .ui-element {
@@ -154,7 +156,7 @@
         isImgLoaded = true;
     };
 
-    // المضرب (مكبرينه لـ 130 لسهولة اللعب والتحكم)
+    // المضرب (مكبر لـ 130 لسهولة اللعب)
     const paddle = {
         width: 130, 
         height: 14,
@@ -177,7 +179,7 @@
         }];
     }
 
-    // البلوكات (17 بلوكة ملونة ومبهجة)
+    // البلوكات (17 بلوكة بنفس تقسيم الألوان القديم)
     const brickRows = 3;
     const brickCols = 6; 
     const brickWidth = 54;
@@ -187,7 +189,6 @@
     const brickOffsetLeft = 18;
 
     let bricks = [];
-    const brickColors = ["#ff007f", "#00ffcc", "#ffcc00", "#00ff55", "#ff5500", "#aa00ff"];
 
     function initBricks() {
         bricks = [];
@@ -199,7 +200,8 @@
                         x: c * (brickWidth + brickPadding) + brickOffsetLeft,
                         y: r * (brickHeight + brickPadding) + brickOffsetTop,
                         status: 1,
-                        color: brickColors[(r * brickCols + c) % brickColors.length] // ألوان نيون مختلفة
+                        // الصف الأول بينك، الثاني سيان (لبني)، الثالث أصفر
+                        color: r === 0 ? "#ff007f" : r === 1 ? "#00ffcc" : "#ffcc00"
                     });
                     count++;
                 }
@@ -207,17 +209,16 @@
         }
     }
 
-    // معادلة لمس وسحب المضرب مع حل مشكلة التباعد (Scaling Fix)
+    // حل مشكلة تباعد المستطيل عن الصباع بالـ Scaling المظبوط
     function handleMove(clientX) {
         const rect = canvas.getBoundingClientRect();
-        // ضرب الإحداثيات في النسبة بين العرض الداخلي والعرض الفعلي على الشاشة
-        const scaleX = canvas.width / rect.width;
+        const scaleX = 400 / rect.width; // تحويل بكسلات الشاشة لبكسلات اللعبة الداخلية
         const relativeX = (clientX - rect.left) * scaleX;
         
         paddle.x = relativeX - paddle.width / 2;
         
         if (paddle.x < 0) paddle.x = 0;
-        if (paddle.x > canvas.width - paddle.width) paddle.x = canvas.width - paddle.width;
+        if (paddle.x > 400 - paddle.width) paddle.x = 400 - paddle.width;
 
         if (isBallSticky && balls.length > 0) {
             balls[0].x = paddle.x + paddle.width / 2;
@@ -266,13 +267,13 @@
             ball.x += ball.dx;
             ball.y += ball.dy;
 
-            // الارتداد من الجدران
+            // الارتداد من الحوائط
             if (ball.x - ball.radius < 0) {
                 ball.x = ball.radius;
                 ball.dx = -ball.dx;
             }
-            if (ball.x + ball.radius > canvas.width) {
-                ball.x = canvas.width - ball.radius;
+            if (ball.x + ball.radius > 400) {
+                ball.x = 400 - ball.radius;
                 ball.dx = -ball.dx;
             }
             if (ball.y - ball.radius < 0) {
@@ -280,24 +281,29 @@
                 ball.dy = -ball.dy;
             }
 
-            // نظام اصطدام ذكي ومؤمن لمنع الكورة من اختراق المضرب
+            // نظام اصطدام آمن يمنع اختراق المضرب نهائياً
             if (
-                ball.dy > 0 && // ترتد فقط وهي نازلة لتحت
+                ball.dy > 0 && 
                 ball.y + ball.radius >= paddle.y &&
                 ball.y - ball.radius <= paddle.y + paddle.height &&
                 ball.x + ball.radius >= paddle.x &&
                 ball.x - ball.radius <= paddle.x + paddle.width
             ) {
-                ball.y = paddle.y - ball.radius; // رفع الكورة فوق المضرب فوراً لمنع الاختراق
+                ball.y = paddle.y - ball.radius; // رفع الكورة فوق المضرب فوراً
                 let hitPoint = ball.x - (paddle.x + paddle.width / 2);
                 let normalizedHitPoint = hitPoint / (paddle.width / 2); 
+                
+                // تحديد زاوية ارتداد آمنة
+                if (normalizedHitPoint > 0.8) normalizedHitPoint = 0.8;
+                if (normalizedHitPoint < -0.8) normalizedHitPoint = -0.8;
+                
                 let angle = normalizedHitPoint * (Math.PI / 3); 
 
                 ball.dx = ball.speed * Math.sin(angle);
                 ball.dy = -ball.speed * Math.cos(angle);
             }
 
-            // اصطدام البلوكات
+            // اصطدام البلوكات مع ارتداد فيزكس طبيعي
             for (let j = 0; j < bricks.length; j++) {
                 let b = bricks[j];
                 if (b.status === 1) {
@@ -307,12 +313,19 @@
                         ball.y + ball.radius > b.y &&
                         ball.y - ball.radius < b.y + brickHeight
                     ) {
-                        ball.dy = -ball.dy; 
+                        // ارتداد ذكي بناءً على اتجاه الكورة قبل الاصطدام
+                        let prevY = ball.y - ball.dy;
+                        if (prevY + ball.radius <= b.y || prevY - ball.radius >= b.y + brickHeight) {
+                            ball.dy = -ball.dy;
+                        } else {
+                            ball.dx = -ball.dx;
+                        }
+
                         b.status = 0; 
                         score++;
                         scoreBoard.innerText = `Bricks: ${score} / 17`;
 
-                        // ميزة مضاعفة الكور (تنزيل كورة إضافية بحد أقصى 3 كور)
+                        // مهارة زيادة الكور (تنزيل كورة إضافية بحد أقصى 3 كور)
                         if (score < 17 && balls.length < 3) {
                             spawnExtraBall(ball.x, ball.y);
                         }
@@ -326,8 +339,8 @@
                 }
             }
 
-            // الخسارة عند سقوط كل الكرات
-            if (ball.y - ball.radius > canvas.height) {
+            // سقوط الكورة
+            if (ball.y - ball.radius > 600) {
                 balls.splice(i, 1);
                 if (balls.length === 0) {
                     gameOver();
@@ -338,9 +351,9 @@
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, 400, 600);
 
-        // رسم البلوكات الملونة بوهج نيون خفيف جمالي
+        // رسم البلوكات الملونة بالألوان المطلوبة
         for (let i = 0; i < bricks.length; i++) {
             let b = bricks[i];
             if (b.status === 1) {
@@ -359,7 +372,7 @@
         ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
         ctx.shadowBlur = 0;
 
-        // رسم الكور (دائرية ومقصوصة بشكل احترافي)
+        // رسم الكور بشكل دائري احترافي
         balls.forEach(ball => {
             if (isImgLoaded) {
                 ctx.save();
