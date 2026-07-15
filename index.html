@@ -3,151 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Chapter 17 - Shifo's Birthday Game</title>
+    <title>Chapter 17 - V2</title>
     <style>
-        body { margin: 0; padding: 0; background: #0d0d0d; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; color: #fff; overflow: hidden; }
-        #gameContainer { position: relative; width: 100%; max-width: 400px; height: 600px; background: #151515; border: 4px solid #ff007f; border-radius: 15px; box-shadow: 0 0 25px rgba(255, 0, 127, 0.6); overflow: hidden; }
-        canvas { display: block; background: radial-gradient(circle, #1a1a1a, #0a0a0a); }
-        .ui-element { position: absolute; font-weight: bold; text-shadow: 2px 2px #000; }
-        #scoreBoard { top: 20px; left: 20px; font-size: 22px; color: #00ffcc; }
-        #instructions { bottom: 80px; width: 100%; text-align: center; font-size: 16px; color: #aaa; animation: blink 1.2s infinite; pointer-events: none; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        #winScreen, #gameOverScreen { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; box-sizing: border-box; z-index: 10; }
-        h1 { color: #ff007f; margin-bottom: 10px; font-size: 28px; text-shadow: 0 0 10px #ff007f; }
-        p { font-size: 18px; margin-bottom: 25px; line-height: 1.6; }
-        button { background: #ff007f; color: white; border: none; padding: 12px 35px; font-size: 18px; border-radius: 25px; cursor: pointer; box-shadow: 0 5px #99004c; transition: 0.2s; font-weight: bold; }
-        button:active { transform: translateY(3px); }
+        body { margin: 0; padding: 0; background: #0d0d0d; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; color: #fff; overflow: hidden; }
+        #gameContainer { position: relative; width: 100%; max-width: 400px; height: 600px; background: #151515; border: 4px solid #ff007f; border-radius: 15px; box-shadow: 0 0 25px rgba(255, 0, 127, 0.6); }
+        canvas { display: block; background: #000; }
+        .ui { position: absolute; font-weight: bold; color: #fff; }
+        #scoreBoard { top: 10px; left: 10px; font-size: 20px; }
+        #version { top: 10px; right: 10px; font-size: 12px; color: #555; }
+        .screen { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
+        button { background: #ff007f; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 20px; cursor: pointer; }
     </style>
 </head>
 <body>
-
 <div id="gameContainer">
-    <div id="scoreBoard" class="ui-element">Bricks: 0 / 17</div>
+    <div id="scoreBoard" class="ui">Bricks: 0 / 17</div>
+    <div id="version" class="ui">v2.0</div>
     <canvas id="gameCanvas" width="400" height="600"></canvas>
-    <div id="instructions" class="ui-element">Tap to Launch! 🚀</div>
-
-    <div id="gameOverScreen">
-        <h1>Wasted! 💀</h1>
-        <p>شريف لسة محشور فال 16 سنة 💔</p>
-        <button onclick="resetGame()">Try Again</button>
+    
+    <div id="gameOver" class="screen">
+        <h1 style="color:red">Wasted! 💀</h1>
+        <p style="text-align:center">شريف لسة محشور فال 16 سنة 💔</p>
+        <button onclick="location.reload()">Try Again</button>
     </div>
-
-    <div id="winScreen">
-        <h1>Chapter 17 Unlocked! 🎉</h1>
-        <p>شريف بقا 17 سنة شكرا يعالمي 🥳</p>
-        <button onclick="resetGame()">Play Again</button>
+    
+    <div id="winScreen" class="screen">
+        <h1 style="color:#00ffcc">Chapter 17! 🎉</h1>
+        <p style="text-align:center">شريف بقا 17 سنة شكرا يعالمي 🥳</p>
+        <button onclick="location.reload()">Play Again</button>
     </div>
 </div>
 
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    const winScreen = document.getElementById("winScreen");
-    const gameOverScreen = document.getElementById("gameOverScreen");
-    const scoreBoard = document.getElementById("scoreBoard");
-    const instructions = document.getElementById("instructions");
+    const paddle = { x: 135, y: 520, w: 130, h: 15 };
+    let balls = [{x: 200, y: 500, dx: 3, dy: -3, r: 10}];
+    let bricks = [], score = 0, isRunning = true;
 
-    let isPlaying = true;
-    let balls = [{x: 200, y: 505, dx: 4, dy: -4, radius: 15, speed: 6}];
-    let score = 0;
-    let isBallSticky = true;
+    // تهيئة البلوكات
+    for(let r=0; r<3; r++) for(let c=0; c<6; c++) if(bricks.length < 17) bricks.push({x: c*60 + 25, y: r*30 + 50, w: 50, h: 20, active: true});
 
-    const ballImg = new Image();
-    ballImg.src = "shifo.png";
-    let isImgLoaded = false;
-    ballImg.onload = () => { isImgLoaded = true; };
-
-    const paddle = { width: 130, height: 12, x: 135, y: 520, color: "#ff007f" };
-    const brickRows = 3;
-    const brickCols = 6;
-    const brickWidth = 54;
-    const brickHeight = 20;
-    const brickPadding = 8;
-    const brickOffsetTop = 80;
-    const brickOffsetLeft = 18;
-    let bricks = [];
-
-    function initBricks() {
-        bricks = [];
-        let count = 0;
-        for (let r = 0; r < brickRows; r++) {
-            for (let c = 0; c < brickCols; c++) {
-                if (count < 17) {
-                    bricks.push({x: c * (brickWidth + brickPadding) + brickOffsetLeft, y: r * (brickHeight + brickPadding) + brickOffsetTop, status: 1, color: r === 0 ? "#ff007f" : r === 1 ? "#00ffcc" : "#ffcc00"});
-                    count++;
-                }
-            }
-        }
-    }
-
-    function handleMove(clientX) {
-        const rect = canvas.getBoundingClientRect();
-        paddle.x = (clientX - rect.left) - paddle.width / 2;
-        if (paddle.x < 0) paddle.x = 0;
-        if (paddle.x > canvas.width - paddle.width) paddle.x = canvas.width - paddle.width;
-        if (isBallSticky) balls[0].x = paddle.x + paddle.width / 2;
-    }
-
-    canvas.addEventListener("mousemove", (e) => handleMove(e.clientX));
-    canvas.addEventListener("touchmove", (e) => { e.preventDefault(); handleMove(e.touches[0].clientX); }, { passive: false });
-    canvas.addEventListener("click", () => { isBallSticky = false; instructions.style.display = "none"; });
+    canvas.addEventListener("touchmove", e => {
+        paddle.x = e.touches[0].clientX - 200 - paddle.w/2;
+    });
 
     function update() {
-        if (!isPlaying || isBallSticky) return;
-
-        balls.forEach((ball, index) => {
-            ball.x += ball.dx;
-            ball.y += ball.dy;
-
-            if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) ball.dx = -ball.dx;
-            if (ball.y - ball.radius < 0) ball.dy = -ball.dy;
-
-            if (ball.y + ball.radius >= paddle.y && ball.x >= paddle.x && ball.x <= paddle.x + paddle.width) {
-                ball.dy = -ball.speed;
-                ball.dx = (ball.x - (paddle.x + paddle.width / 2)) * 0.2;
-            }
-
-            bricks.forEach(b => {
-                if (b.status === 1 && ball.x > b.x && ball.x < b.x + brickWidth && ball.y > b.y && ball.y < b.y + brickHeight) {
-                    b.status = 0;
-                    ball.dy = -ball.dy;
-                    score++;
-                    scoreBoard.innerText = `Bricks: ${score} / 17`;
-                    if (score < 17 && balls.length < 3) balls.push({x: paddle.x + paddle.width/2, y: 500, dx: 3, dy: -5, radius: 15, speed: 6});
-                    if (score === 17) win();
+        if(!isRunning) return;
+        balls.forEach((b, i) => {
+            b.x += b.dx; b.y += b.dy;
+            if(b.x < 0 || b.x > 400) b.dx *= -1;
+            if(b.y < 0) b.dy *= -1;
+            if(b.y > b.y + 15 && b.x > paddle.x && b.x < paddle.x + paddle.w && b.y > paddle.y) b.dy *= -1;
+            
+            bricks.forEach(brick => {
+                if(brick.active && b.x > brick.x && b.x < brick.x + brick.w && b.y > brick.y && b.y < brick.y + brick.h) {
+                    brick.active = false; b.dy *= -1; score++;
+                    document.getElementById("scoreBoard").innerText = `Bricks: ${score} / 17`;
+                    if(balls.length < 3) balls.push({x: b.x, y: b.y, dx: -b.dx, dy: 3, r: 10});
+                    if(score === 17) document.getElementById("winScreen").style.display = "flex";
                 }
             });
-
-            if (ball.y > canvas.height) {
-                balls.splice(index, 1);
-                if (balls.length === 0) gameOver();
-            }
+            if(b.y > 600) { balls.splice(i, 1); if(balls.length === 0) document.getElementById("gameOver").style.display = "flex"; }
         });
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        bricks.forEach(b => { if (b.status === 1) { ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, brickWidth, brickHeight); } });
-        ctx.fillStyle = paddle.color; ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
-        
-        balls.forEach(ball => {
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-            ctx.clip();
-            if (isImgLoaded) ctx.drawImage(ballImg, ball.x - ball.radius, ball.y - ball.radius, ball.radius*2, ball.radius*2);
-            else { ctx.fillStyle = "#fff"; ctx.fill(); }
-            ctx.restore();
-        });
+        ctx.clearRect(0,0,400,600);
+        ctx.fillStyle = "#ff007f"; ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+        bricks.forEach(b => { if(b.active) { ctx.fillStyle = "#00ffcc"; ctx.fillRect(b.x, b.y, b.w, b.h); } });
+        balls.forEach(b => { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); });
+        requestAnimationFrame(() => { update(); draw(); });
     }
-
-    function gameOver() { isPlaying = false; gameOverScreen.style.display = "flex"; }
-    function win() { isPlaying = false; winScreen.style.display = "flex"; }
-    function resetGame() { score = 0; scoreBoard.innerText = `Bricks: ${score} / 17`; initBricks(); balls = [{x: 200, y: 505, dx: 4, dy: -4, radius: 15, speed: 6}]; isBallSticky = true; isPlaying = true; gameOverScreen.style.display = "none"; winScreen.style.display = "none"; instructions.style.display = "block"; }
-
-    initBricks();
-    function loop() { update(); draw(); requestAnimationFrame(loop); }
-    loop();
+    draw();
 </script>
 </body>
 </html>
